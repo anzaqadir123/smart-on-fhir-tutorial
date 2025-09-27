@@ -74,7 +74,7 @@
     -->
 
     <!-- Application-level javascript-->
-    <script src='./src/js/example-smart-app.js?v=6'></script>
+    <script src='./src/js/example-smart-app.js?v=8'></script>
 
     <!-- FHIR Client JS Library -->
     <script src='./lib/js/fhir-client-v0.1.12.js'></script>
@@ -102,7 +102,7 @@
         console.log('Error checking authorization state:', e);
       }
       
-      // Global error handler to catch JWT decode errors
+      // Global error handler to catch JWT decode errors and CORS issues
       window.addEventListener('error', function(e) {
         if (e.message && (e.message.includes('exp') || e.message.includes('Cannot read properties of null'))) {
           console.log('Global error handler caught JWT error:', e.message);
@@ -120,6 +120,10 @@
           } catch (storageError) {
             console.log('Error clearing tokens:', storageError);
           }
+        } else if (e.message && e.message.includes('CORS')) {
+          console.log('Global error handler caught CORS error:', e.message);
+          $('#loading').hide();
+          $('#errors').html('<p style="color: red;">CORS Error: Cross-origin request blocked. <br><strong>Solution:</strong> Use SMART Health IT Sandbox instead of Cerner for development.</p>');
         }
       });
       

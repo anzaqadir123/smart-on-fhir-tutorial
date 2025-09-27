@@ -26,17 +26,16 @@
     <script src='./lib/js/fhir-client-cerner-additions-1.0.0.js'></script>
     <script>
       // Debug: Log the scope being requested
-      var requestedScopes = 'launch patient/Patient.read patient/Observation.read online_access openid profile';
-      // Alternative scope format for Cerner
-      var alternativeScopes = 'launch patient/Patient.read patient/Observation.read online_access';
-      console.log('🔍 REQUESTING SCOPES:', requestedScopes);
+      // Try different scope formats for Cerner
+      var scopeFormat1 = 'launch patient/Patient.read patient/Observation.read online_access';
+      var scopeFormat2 = 'patient/Patient.read patient/Observation.read launch online_access';
+      var scopeFormat3 = 'launch patient/Patient.read patient/Observation.read';
       
-      // Try alternative scope format for Cerner
-      console.log('🔄 TRYING ALTERNATIVE SCOPES:', alternativeScopes);
+      console.log('🔍 TRYING SCOPE FORMAT 1:', scopeFormat1);
       
       FHIR.oauth2.authorize({
         'client_id': 'f3bd5c67-dd03-488e-b3d9-c3cc97bb9b8e',
-        'scope': alternativeScopes
+        'scope': scopeFormat1
       });
     </script>
     <div class="spinner">

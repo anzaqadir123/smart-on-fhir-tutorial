@@ -5,6 +5,11 @@
     // Version indicator for debugging
     console.log('SMART App JavaScript v3 - Fixed family name handling');
     
+    // CORS debugging
+    console.log('🔍 CORS Debug Info:');
+    console.log('Current origin:', window.location.origin);
+    console.log('Current domain:', window.location.hostname);
+    
     // Debug function to check token state
     function debugTokenState() {
       try {
@@ -173,17 +178,30 @@
           console.log('Patient read error:', patientError);
           console.log('Observation fetch error:', obsError);
           
-          // Check for 403 errors specifically
-          if (patientError && patientError.status === 403) {
-            console.log('403 Forbidden error accessing Patient resource');
-            console.log('This usually means insufficient scopes or permissions');
-            onError(new Error('403 Forbidden: Insufficient permissions to access Patient resource. Check that patient/Patient.read scope is granted.'));
-          } else if (obsError && obsError.status === 403) {
-            console.log('403 Forbidden error accessing Observation resource');
-            onError(new Error('403 Forbidden: Insufficient permissions to access Observation resource. Check that patient/Observation.read scope is granted.'));
-          } else {
-            onError(patientError || obsError);
-          }
+      // Check for different error types
+      var error = patientError || obsError;
+      
+      if (error && error.status === 403) {
+        console.log('403 Forbidden error - insufficient scopes');
+        onError(new Error('403 Forbidden: Insufficient permissions. Check that patient/Patient.read and patient/Observation.read scopes are granted.'));
+      } else if (error && error.status === 502) {
+        console.log('502 Bad Gateway - Cerner server issue');
+        onError(new Error('502 Bad Gateway: Cerner FHIR server is temporarily unavailable. Please try again in a few minutes.'));
+      } else if (error && error.status === 503) {
+        console.log('503 Service Unavailable - Cerner server maintenance');
+        onError(new Error('503 Service Unavailable: Cerner FHIR server is under maintenance. Please try again later.'));
+      } else if (error && error.status === 500) {
+        console.log('500 Internal Server Error - Cerner server issue');
+        onError(new Error('500 Internal Server Error: Cerner FHIR server encountered an error. Please try again.'));
+      } else if (error && error.status === 0) {
+        console.log('CORS error detected (status 0)');
+        onError(new Error('CORS Error: Cross-origin request blocked. This may be due to Cerner server CORS policy or browser security settings.'));
+      } else if (error && error.message && error.message.includes('CORS')) {
+        console.log('CORS error detected in message');
+        onError(new Error('CORS Error: ' + error.message + '. Try using SMART Health IT Sandbox instead.'));
+      } else {
+        onError(error);
+      }
         });
 
         $.when(pt, obv).done(function(patient, obv) {
