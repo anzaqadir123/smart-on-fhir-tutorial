@@ -2,6 +2,9 @@
   window.extractData = function() {
     var ret = $.Deferred();
     
+    // Version indicator for debugging
+    console.log('SMART App JavaScript v3 - Fixed family name handling');
+    
     // Debug function to check token state
     function debugTokenState() {
       try {
@@ -147,23 +150,31 @@
           if (typeof patient.name[0] !== 'undefined') {
             try {
               // Handle given names (first names) - ensure it's an array
-              if (patient.name[0].given && Array.isArray(patient.name[0].given)) {
-                fname = patient.name[0].given.join(' ');
-              } else if (patient.name[0].given) {
-                fname = patient.name[0].given; // Single string
+              if (patient.name[0].given) {
+                if (Array.isArray(patient.name[0].given)) {
+                  fname = patient.name[0].given.join(' ');
+                } else if (typeof patient.name[0].given === 'string') {
+                  fname = patient.name[0].given;
+                }
               }
               
               // Handle family name - ensure it's an array or handle string
-              if (patient.name[0].family && Array.isArray(patient.name[0].family)) {
-                lname = patient.name[0].family.join(' ');
-              } else if (patient.name[0].family) {
-                lname = patient.name[0].family; // Single string
+              if (patient.name[0].family) {
+                if (Array.isArray(patient.name[0].family)) {
+                  lname = patient.name[0].family.join(' ');
+                } else if (typeof patient.name[0].family === 'string') {
+                  lname = patient.name[0].family;
+                }
               }
             } catch (nameError) {
               console.log('Error processing patient name:', nameError);
               fname = 'Unknown';
               lname = 'Unknown';
             }
+          } else {
+            console.log('No patient name found, using defaults');
+            fname = 'Unknown';
+            lname = 'Unknown';
           }
 
           var height = byCodes('8302-2');
