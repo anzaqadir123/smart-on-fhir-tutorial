@@ -25,9 +25,18 @@
     <!-- https://github.com/cerner/fhir-client-cerner-additions -->
     <script src='./lib/js/fhir-client-cerner-additions-1.0.0.js'></script>
     <script>
+      // Debug: Log the scope being requested
+      var requestedScopes = 'launch patient/Patient.read patient/Observation.read online_access openid profile';
+      // Alternative scope format for Cerner
+      var alternativeScopes = 'launch patient/Patient.read patient/Observation.read online_access';
+      console.log('🔍 REQUESTING SCOPES:', requestedScopes);
+      
+      // Try alternative scope format for Cerner
+      console.log('🔄 TRYING ALTERNATIVE SCOPES:', alternativeScopes);
+      
       FHIR.oauth2.authorize({
         'client_id': 'f3bd5c67-dd03-488e-b3d9-c3cc97bb9b8e',
-        'scope':  'launch patient/Patient.read patient/Observation.read online_access openid profile'
+        'scope': alternativeScopes
       });
     </script>
     <div class="spinner">

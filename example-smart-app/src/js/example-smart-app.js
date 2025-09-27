@@ -57,17 +57,22 @@
       
       // Check if this is a JWT decode error
       var isJWTError = false;
+      var isStateError = false;
       var errorMsg = '';
       
       if (error && error.message) {
         errorMsg = error.message;
         if (error.message.includes('exp') || error.message.includes('Cannot read properties of null')) {
           isJWTError = true;
+        } else if (error.message.includes('state parameter') || error.message.includes('authorization response')) {
+          isStateError = true;
         }
       } else if (arguments && arguments.length > 0) {
         var errorStr = JSON.stringify(arguments);
         if (errorStr.includes('exp') || errorStr.includes('null')) {
           isJWTError = true;
+        } else if (errorStr.includes('state parameter') || errorStr.includes('authorization response')) {
+          isStateError = true;
         }
         errorMsg = errorStr;
       }
@@ -76,6 +81,15 @@
       if (isJWTError) {
         console.log('Detected JWT decode error, clearing tokens...');
         clearTokensAndRetry();
+        return;
+      }
+      
+      // If it's a state parameter error, show specific guidance
+      if (isStateError) {
+        console.log('Detected state parameter error - OAuth flow issue');
+        $('#loading').hide();
+        $('#errors').html('<p style="color: orange;">OAuth authorization error. <a href="javascript:location.reload()">Click here to restart</a> or try launching from Cerner console again.</p>');
+        ret.reject();
         return;
       }
       
@@ -99,8 +113,38 @@
         console.log('🎯 DETECTED CERNER SERVER - Enhanced debugging enabled');
         console.log('Server metadata:', smart.server);
         console.log('Token response:', smart.tokenResponse);
+        
+        // Check multiple possible scope locations
         if (smart.tokenResponse && smart.tokenResponse.scope) {
-          console.log('Token scopes:', smart.tokenResponse.scope);
+          console.log('✅ Token scopes found:', smart.tokenResponse.scope);
+        } else if (smart.server && smart.server.scope) {
+          console.log('✅ Server scopes found:', smart.server.scope);
+        } else if (smart.scope) {
+          console.log('✅ SMART scopes found:', smart.scope);
+        } else {
+          console.log('❌ NO SCOPES FOUND - This explains the 403 error!');
+          console.log('Available smart properties:', Object.keys(smart));
+          console.log('Available server properties:', smart.server ? Object.keys(smart.server) : 'No server object');
+          console.log('Available tokenResponse properties:', smart.tokenResponse ? Object.keys(smart.tokenResponse) : 'No tokenResponse object');
+          
+          // Try to extract scopes from JWT token
+          if (smart.tokenResponse && smart.tokenResponse.access_token) {
+            try {
+              // Decode JWT token to check scopes
+              var tokenParts = smart.tokenResponse.access_token.split('.');
+              if (tokenParts.length === 3) {
+                var payload = JSON.parse(atob(tokenParts[1]));
+                console.log('JWT Payload:', payload);
+                if (payload.scope) {
+                  console.log('✅ SCOPES FOUND IN JWT:', payload.scope);
+                } else {
+                  console.log('❌ No scope field in JWT payload');
+                }
+              }
+            } catch (e) {
+              console.log('Error decoding JWT:', e);
+            }
+          }
         }
       }
       

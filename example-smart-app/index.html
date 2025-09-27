@@ -74,7 +74,7 @@
     -->
 
     <!-- Application-level javascript-->
-    <script src='./src/js/example-smart-app.js?v=4'></script>
+    <script src='./src/js/example-smart-app.js?v=6'></script>
 
     <!-- FHIR Client JS Library -->
     <script src='./lib/js/fhir-client-v0.1.12.js'></script>
@@ -84,17 +84,22 @@
     <script src='./lib/js/fhir-client-cerner-additions-1.0.0.js'></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
     <script>
-      // Clear any existing tokens on page load
+      // Check for existing authorization state
       try {
-        sessionStorage.removeItem('smart_token_response');
-        sessionStorage.removeItem('smart_authorize_state');
-        sessionStorage.removeItem('smart_authorize_nonce');
-        localStorage.removeItem('smart_token_response');
-        localStorage.removeItem('smart_authorize_state');
-        localStorage.removeItem('smart_authorize_nonce');
-        console.log('Cleared existing tokens for fresh authorization');
+        var existingState = sessionStorage.getItem('smart_authorize_state');
+        var existingToken = sessionStorage.getItem('smart_token_response');
+        
+        if (existingState) {
+          console.log('Existing authorization state found:', existingState);
+        }
+        if (existingToken) {
+          console.log('Existing token found, will attempt to use it');
+        }
+        if (!existingState && !existingToken) {
+          console.log('No existing authorization state - fresh authorization needed');
+        }
       } catch (e) {
-        console.log('Error clearing tokens:', e);
+        console.log('Error checking authorization state:', e);
       }
       
       // Global error handler to catch JWT decode errors
