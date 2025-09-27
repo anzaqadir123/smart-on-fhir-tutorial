@@ -84,6 +84,27 @@
     <script src='./lib/js/fhir-client-cerner-additions-1.0.0.js'></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
     <script>
+      // Global error handler to catch JWT decode errors
+      window.addEventListener('error', function(e) {
+        if (e.message && (e.message.includes('exp') || e.message.includes('Cannot read properties of null'))) {
+          console.log('Global error handler caught JWT error:', e.message);
+          $('#loading').hide();
+          $('#errors').html('<p style="color: orange;">Authorization tokens were corrupted. <a href="javascript:location.reload()">Click here to refresh and restart</a></p>');
+          
+          // Clear tokens
+          try {
+            sessionStorage.removeItem('smart_token_response');
+            sessionStorage.removeItem('smart_authorize_state');
+            sessionStorage.removeItem('smart_authorize_nonce');
+            localStorage.removeItem('smart_token_response');
+            localStorage.removeItem('smart_authorize_state');
+            localStorage.removeItem('smart_authorize_nonce');
+          } catch (storageError) {
+            console.log('Error clearing tokens:', storageError);
+          }
+        }
+      });
+      
       extractData().then(
         //Display Patient Demographics and Observations if extractData was success
         function(p) {

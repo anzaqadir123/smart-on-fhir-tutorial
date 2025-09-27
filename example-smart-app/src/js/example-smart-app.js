@@ -1,14 +1,93 @@
 (function(window){
   window.extractData = function() {
     var ret = $.Deferred();
+    
+    // Debug function to check token state
+    function debugTokenState() {
+      try {
+        console.log('Checking token state...');
+        console.log('sessionStorage keys:', Object.keys(sessionStorage));
+        console.log('localStorage keys:', Object.keys(localStorage));
+        
+        // Check for SMART token in session storage
+        var smartToken = sessionStorage.getItem('smart_token_response');
+        if (smartToken) {
+          console.log('SMART token found:', smartToken);
+        } else {
+          console.log('No SMART token found in sessionStorage');
+        }
+      } catch (e) {
+        console.log('Error accessing storage:', e);
+      }
+    }
+    
+    debugTokenState();
+    
+    // Function to clear potentially corrupted tokens
+    function clearTokensAndRetry() {
+      console.log('Clearing potentially corrupted tokens...');
+      try {
+        // Clear SMART-related tokens from session storage
+        sessionStorage.removeItem('smart_token_response');
+        sessionStorage.removeItem('smart_authorize_state');
+        sessionStorage.removeItem('smart_authorize_nonce');
+        
+        // Clear from localStorage as well
+        localStorage.removeItem('smart_token_response');
+        localStorage.removeItem('smart_authorize_state');
+        localStorage.removeItem('smart_authorize_nonce');
+        
+        console.log('Tokens cleared. Please refresh the page to restart authorization.');
+        
+        // Show user-friendly message
+        $('#loading').hide();
+        $('#errors').html('<p style="color: orange;">Authorization tokens were corrupted. <a href="javascript:location.reload()">Click here to refresh and restart</a></p>');
+        
+      } catch (e) {
+        console.log('Error clearing tokens:', e);
+      }
+    }
 
-    function onError() {
-      console.log('Loading error', arguments);
+    function onError(error) {
+      console.log('Loading error', error);
+      console.log('Error details:', arguments);
+      
+      // Check if this is a JWT decode error
+      var isJWTError = false;
+      var errorMsg = '';
+      
+      if (error && error.message) {
+        errorMsg = error.message;
+        if (error.message.includes('exp') || error.message.includes('Cannot read properties of null')) {
+          isJWTError = true;
+        }
+      } else if (arguments && arguments.length > 0) {
+        var errorStr = JSON.stringify(arguments);
+        if (errorStr.includes('exp') || errorStr.includes('null')) {
+          isJWTError = true;
+        }
+        errorMsg = errorStr;
+      }
+      
+      // If it's a JWT error, clear tokens and show retry message
+      if (isJWTError) {
+        console.log('Detected JWT decode error, clearing tokens...');
+        clearTokensAndRetry();
+        return;
+      }
+      
+      // Otherwise show regular error
+      $('#loading').hide();
+      $('#errors').html('<p style="color: red;">Failed to get FHIR resources. Error: ' + errorMsg + '</p>');
+      
       ret.reject();
     }
 
     function onReady(smart)  {
+      console.log('SMART object received:', smart);
+      
       if (smart.hasOwnProperty('patient')) {
+        console.log('Patient context found:', smart.patient);
         var patient = smart.patient;
         var pt = patient.read();
         var obv = smart.patient.api.fetchAll({
@@ -22,7 +101,11 @@
                     }
                   });
 
-        $.when(pt, obv).fail(onError);
+        $.when(pt, obv).fail(function(patientError, obsError) {
+          console.log('Patient read error:', patientError);
+          console.log('Observation fetch error:', obsError);
+          onError(patientError || obsError);
+        });
 
         $.when(pt, obv).done(function(patient, obv) {
           var byCodes = smart.byCodes(obv, 'code');
@@ -63,11 +146,23 @@
           ret.resolve(p);
         });
       } else {
-        onError();
+        console.log('No patient context found in SMART object');
+        onError(new Error('No patient context available'));
       }
     }
 
-    FHIR.oauth2.ready(onReady, onError);
+    // Add error handling for JWT decode issues
+    try {
+      FHIR.oauth2.ready(onReady, onError);
+    } catch (error) {
+      console.log('FHIR.oauth2.ready failed:', error);
+      if (error.message && error.message.includes('exp')) {
+        onError(new Error('Token validation failed - please try launching the app again'));
+      } else {
+        onError(error);
+      }
+    }
+    
     return ret.promise();
 
   };
