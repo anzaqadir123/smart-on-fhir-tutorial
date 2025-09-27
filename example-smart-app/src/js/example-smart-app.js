@@ -94,6 +94,16 @@
       console.log('Granted Scopes:', smart.server.scope);
       console.log('Patient ID:', smart.patient.id);
       
+      // Cerner-specific debugging
+      if (smart.server.serviceUrl && smart.server.serviceUrl.includes('cerner.com')) {
+        console.log('🎯 DETECTED CERNER SERVER - Enhanced debugging enabled');
+        console.log('Server metadata:', smart.server);
+        console.log('Token response:', smart.tokenResponse);
+        if (smart.tokenResponse && smart.tokenResponse.scope) {
+          console.log('Token scopes:', smart.tokenResponse.scope);
+        }
+      }
+      
       if (smart.hasOwnProperty('patient')) {
         console.log('Patient context found:', smart.patient);
         var patient = smart.patient;
