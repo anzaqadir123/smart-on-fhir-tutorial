@@ -85,11 +85,22 @@
 
     function onReady(smart)  {
       console.log('SMART object received:', smart);
+      console.log('FHIR Server URL:', smart.server.serviceUrl);
+      console.log('FHIR Version:', smart.server.fhirVersion);
+      console.log('Authorization URL:', smart.server.authorizeUrl);
+      console.log('Granted Scopes:', smart.server.scope);
+      console.log('Patient ID:', smart.patient.id);
       
       if (smart.hasOwnProperty('patient')) {
         console.log('Patient context found:', smart.patient);
         var patient = smart.patient;
+        
+        // Log the patient read request
+        console.log('Making patient read request...');
         var pt = patient.read();
+        
+        // Log the observation fetch request
+        console.log('Making observation fetch request...');
         var obv = smart.patient.api.fetchAll({
                     type: 'Observation',
                     query: {
@@ -104,7 +115,18 @@
         $.when(pt, obv).fail(function(patientError, obsError) {
           console.log('Patient read error:', patientError);
           console.log('Observation fetch error:', obsError);
-          onError(patientError || obsError);
+          
+          // Check for 403 errors specifically
+          if (patientError && patientError.status === 403) {
+            console.log('403 Forbidden error accessing Patient resource');
+            console.log('This usually means insufficient scopes or permissions');
+            onError(new Error('403 Forbidden: Insufficient permissions to access Patient resource. Check that patient/Patient.read scope is granted.'));
+          } else if (obsError && obsError.status === 403) {
+            console.log('403 Forbidden error accessing Observation resource');
+            onError(new Error('403 Forbidden: Insufficient permissions to access Observation resource. Check that patient/Observation.read scope is granted.'));
+          } else {
+            onError(patientError || obsError);
+          }
         });
 
         $.when(pt, obv).done(function(patient, obv) {
