@@ -136,9 +136,34 @@
           var fname = '';
           var lname = '';
 
+          // Debug: Log the patient name structure
+          console.log('Patient name structure:', patient.name);
+          if (patient.name && patient.name[0]) {
+            console.log('First name object:', patient.name[0]);
+            console.log('Given name type:', typeof patient.name[0].given, patient.name[0].given);
+            console.log('Family name type:', typeof patient.name[0].family, patient.name[0].family);
+          }
+
           if (typeof patient.name[0] !== 'undefined') {
-            fname = patient.name[0].given.join(' ');
-            lname = patient.name[0].family.join(' ');
+            try {
+              // Handle given names (first names) - ensure it's an array
+              if (patient.name[0].given && Array.isArray(patient.name[0].given)) {
+                fname = patient.name[0].given.join(' ');
+              } else if (patient.name[0].given) {
+                fname = patient.name[0].given; // Single string
+              }
+              
+              // Handle family name - ensure it's an array or handle string
+              if (patient.name[0].family && Array.isArray(patient.name[0].family)) {
+                lname = patient.name[0].family.join(' ');
+              } else if (patient.name[0].family) {
+                lname = patient.name[0].family; // Single string
+              }
+            } catch (nameError) {
+              console.log('Error processing patient name:', nameError);
+              fname = 'Unknown';
+              lname = 'Unknown';
+            }
           }
 
           var height = byCodes('8302-2');
