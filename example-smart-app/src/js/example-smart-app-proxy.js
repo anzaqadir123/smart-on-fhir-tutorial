@@ -42,22 +42,40 @@
         console.log('Patient context found:', smart.patient);
         var patient = smart.patient;
         
+        // Build Authorization header using SMART access token
+        var accessToken = smart && smart.tokenResponse && smart.tokenResponse.access_token;
+        var patientId = smart && smart.patient && smart.patient.id;
+        
         // Log the patient read request
         console.log('Making patient read request via proxy...');
-        var pt = patient.read();
+        var pt = fetch(PROXY_BASE_URL + '/Patient/' + encodeURIComponent(patientId), {
+          headers: {
+            'Authorization': 'Bearer ' + accessToken,
+            'Accept': 'application/fhir+json'
+          }
+        }).then(function(resp){ return resp.json(); });
         
         // Log the observation fetch request
         console.log('Making observation fetch request via proxy...');
-        var obv = smart.patient.api.fetchAll({
-                    type: 'Observation',
-                    query: {
-                      code: {
-                        $or: ['http://loinc.org|8302-2', 'http://loinc.org|8462-4',
-                              'http://loinc.org|8480-6', 'http://loinc.org|2085-9',
-                              'http://loinc.org|2089-1', 'http://loinc.org|55284-4']
-                      }
-                    }
-                  });
+        var loincCodes = [
+          'http://loinc.org|8302-2',
+          'http://loinc.org|8462-4',
+          'http://loinc.org|8480-6',
+          'http://loinc.org|2085-9',
+          'http://loinc.org|2089-1',
+          'http://loinc.org|55284-4'
+        ].join(',');
+        var obv = fetch(PROXY_BASE_URL + '/Observation?patient=' + encodeURIComponent(patientId) + '&code=' + encodeURIComponent(loincCodes), {
+          headers: {
+            'Authorization': 'Bearer ' + accessToken,
+            'Accept': 'application/fhir+json'
+          }
+        })
+        .then(function(resp){ return resp.json(); })
+        .then(function(bundle){
+          var entries = (bundle && bundle.entry) ? bundle.entry : [];
+          return entries.map(function(e){ return e.resource; });
+        });
 
         $.when(pt, obv).fail(function(patientError, obsError) {
           console.log('Patient read error:', patientError);
