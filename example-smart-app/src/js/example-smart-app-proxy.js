@@ -77,28 +77,9 @@
           return entries.map(function(e){ return e.resource; });
         });
 
-        $.when(pt, obv).fail(function(patientError, obsError) {
-          console.log('Patient read error:', patientError);
-          console.log('Observation fetch error:', obsError);
-          
-          // Check for different error types
-          var error = patientError || obsError;
-          
-          if (error && error.status === 403) {
-            console.log('403 Forbidden error - insufficient scopes');
-            onError(new Error('403 Forbidden: Insufficient permissions. Check that patient/Patient.read and patient/Observation.read scopes are granted.'));
-          } else if (error && error.status === 502) {
-            console.log('502 Bad Gateway - Cerner server issue');
-            onError(new Error('502 Bad Gateway: Cerner FHIR server is temporarily unavailable. Please try again in a few minutes.'));
-          } else if (error && error.status === 0) {
-            console.log('CORS error detected (status 0) - Backend proxy should prevent this');
-            onError(new Error('CORS Error: Backend proxy not running. Start the proxy server with: python backend-proxy.py'));
-          } else {
-            onError(error);
-          }
-        });
-
-        $.when(pt, obv).done(function(patient, obv) {
+        Promise.all([pt, obv]).then(function(results){
+          var patient = results[0];
+          var obv = results[1];
           var byCodes = smart.byCodes(obv, 'code');
           var gender = patient.gender;
 
@@ -165,6 +146,9 @@
           p.ldl = getQuantityValueAndUnit(ldl[0]);
 
           ret.resolve(p);
+        }).catch(function(err){
+          console.log('Proxy fetch error:', err);
+          onError(err);
         });
       } else {
         console.log('No patient context found in SMART object');
