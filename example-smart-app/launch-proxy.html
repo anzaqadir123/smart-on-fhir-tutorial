@@ -13,8 +13,16 @@
     <!-- Prevent session bleed caused by single threaded embedded browser and sessionStorage API -->
     <script src='./lib/js/fhir-client-cerner-additions-1.0.0.js'></script>
     <script>
-      // Provider/EHR launch scopes (use user/*)
-      var requestedScopes = 'user/Patient.read user/Observation.read launch online_access openid profile';
+      // Provider/EHR launch scopes (use user/*) — include all resources we call
+      var requestedScopes = [
+        'launch', 'online_access', 'openid', 'profile',
+        'user/Patient.read',
+        'user/Observation.read',
+        'user/MedicationRequest.read',
+        'user/AllergyIntolerance.read',
+        'user/Condition.read',
+        'user/DocumentReference.read'
+      ].join(' ');
       console.log('🔍 REQUESTING SCOPES:', requestedScopes);
       console.log('🔄 Using backend proxy to avoid CORS issues');
       
