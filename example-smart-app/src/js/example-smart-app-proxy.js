@@ -67,6 +67,25 @@
           }
         }).then(function(resp){ return resp.json(); });
         
+        // Helper to fetch any patient-scoped resource via proxy
+        function fetchResource(resourceType, extraQuery) {
+          var url = PROXY_BASE_URL + '/' + resourceType + '?patient=' + encodeURIComponent(patientId);
+          if (extraQuery) {
+            url += '&' + extraQuery;
+          }
+          return fetch(url, {
+            headers: {
+              'Authorization': 'Bearer ' + accessToken,
+              'Accept': 'application/fhir+json'
+            }
+          })
+          .then(function(resp){ return resp.json(); })
+          .then(function(bundle){
+            var entries = (bundle && bundle.entry) ? bundle.entry : [];
+            return entries.map(function(e){ return e.resource; });
+          });
+        }
+
         // Log the observation fetch request
         console.log('Making observation fetch request via proxy...');
         var loincCodes = [
@@ -77,21 +96,35 @@
           'http://loinc.org|2089-1',
           'http://loinc.org|55284-4'
         ].join(',');
-        var obv = fetch(PROXY_BASE_URL + '/Observation?patient=' + encodeURIComponent(patientId) + '&code=' + encodeURIComponent(loincCodes), {
-          headers: {
-            'Authorization': 'Bearer ' + accessToken,
-            'Accept': 'application/fhir+json'
-          }
-        })
-        .then(function(resp){ return resp.json(); })
-        .then(function(bundle){
-          var entries = (bundle && bundle.entry) ? bundle.entry : [];
-          return entries.map(function(e){ return e.resource; });
-        });
+        var obv = fetchResource('Observation', 'code=' + encodeURIComponent(loincCodes));
 
-        Promise.all([pt, obv]).then(function(results){
+        // Additional resource calls similar to Observation
+        console.log('Making MedicationRequest fetch via proxy...');
+        var meds = fetchResource('MedicationRequest');
+
+        console.log('Making AllergyIntolerance fetch via proxy...');
+        var allergies = fetchResource('AllergyIntolerance');
+
+        console.log('Making Condition fetch via proxy...');
+        var conditions = fetchResource('Condition');
+
+        console.log('Making DocumentReference fetch via proxy...');
+        var documents = fetchResource('DocumentReference');
+
+        Promise.all([pt, obv, meds, allergies, conditions, documents]).then(function(results){
           var patient = results[0];
           var obv = results[1];
+          var medsList = results[2];
+          var allergiesList = results[3];
+          var conditionsList = results[4];
+          var documentsList = results[5];
+
+          // Log counts for visibility
+          console.log('Fetched Observation:', (obv || []).length);
+          console.log('Fetched MedicationRequest:', (medsList || []).length);
+          console.log('Fetched AllergyIntolerance:', (allergiesList || []).length);
+          console.log('Fetched Condition:', (conditionsList || []).length);
+          console.log('Fetched DocumentReference:', (documentsList || []).length);
           var byCodes = smart.byCodes(obv, 'code');
           var gender = patient.gender;
 
