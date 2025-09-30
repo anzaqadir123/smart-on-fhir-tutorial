@@ -32,10 +32,12 @@
       console.log('FHIR Server URL:', smart.server.serviceUrl);
       console.log('Patient ID:', smart.patient.id);
       
-      // Cerner-specific debugging
+      // Cerner-specific debugging + granted scope logging
       if (smart.server.serviceUrl && smart.server.serviceUrl.includes('cerner.com')) {
         console.log('🎯 DETECTED CERNER SERVER - Using backend proxy');
         console.log('🔗 Proxy URL:', PROXY_BASE_URL);
+        var granted = (smart.tokenResponse && smart.tokenResponse.scope) || '(none)';
+        console.log('Token scopes:', granted);
       }
       
       if (smart.hasOwnProperty('patient')) {
@@ -44,7 +46,17 @@
         
         // Build Authorization header using SMART access token
         var accessToken = smart && smart.tokenResponse && smart.tokenResponse.access_token;
-        var patientId = smart && smart.patient && smart.patient.id;
+        // Derive patient id strictly from SMART context (handles function or string forms)
+        var patientId = null;
+        if (smart && smart.patient) {
+          patientId = (typeof smart.patient.id === 'function') ? smart.patient.id() : smart.patient.id;
+        }
+        if (!patientId) {
+          console.log('No patient id in SMART context');
+          onError(new Error('No patient in context; cannot query Patient/Observation'));
+          return;
+        }
+        console.log('Using patient from SMART context:', patientId);
         
         // Log the patient read request
         console.log('Making patient read request via proxy...');

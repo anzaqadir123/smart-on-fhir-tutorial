@@ -8,9 +8,11 @@ from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 import requests
 import json
+import time
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+# Allow Authorization header in CORS preflight so the browser will send it
+CORS(app, resources={r"/proxy/*": {"origins": "*", "allow_headers": ["Authorization", "Content-Type"], "expose_headers": ["Authorization"]}})
 
 # Cerner FHIR endpoints
 CERNER_BASE_URL = "https://fhir-ehr-code.cerner.com/r4/ec2458f2-1e24-41c8-b71b-0e701af7583d"
@@ -25,20 +27,39 @@ def proxy_request(endpoint):
         # Forward query parameters
         query_params = request.args.to_dict()
         
-        # Forward headers (excluding host and origin)
-        headers = dict(request.headers)
-        headers.pop('Host', None)
-        headers.pop('Origin', None)
+        # Forward only necessary headers
+        incoming = dict(request.headers)
+        headers = {
+            'Authorization': incoming.get('Authorization', ''),
+            'Accept': incoming.get('Accept', 'application/fhir+json')
+        }
         
-        # Make the request to Cerner
-        response = requests.get(url, params=query_params, headers=headers)
+        # Debug log to verify Authorization header presence
+        auth_present = bool(headers.get('Authorization'))
+        print(f"[proxy] -> upstream {url} | Authorization header present: {auth_present}")
         
-        # Return the response
-        return Response(
-            response.content,
-            status=response.status_code,
-            headers=dict(response.headers)
-        )
+        # Make the request to Cerner with simple retries on transient 5xx
+        attempts = 0
+        last_exc = None
+        while attempts < 3:
+            attempts += 1
+            try:
+                response = requests.get(url, params=query_params, headers=headers, timeout=20)
+                print(f"[proxy] upstream status: {response.status_code}")
+                if response.status_code in (502, 503, 504):
+                    time.sleep(1.5 * attempts)
+                    continue
+                break
+            except requests.RequestException as e:
+                last_exc = e
+                print(f"[proxy] upstream exception: {e}")
+                time.sleep(1.0 * attempts)
+        
+        if 'response' not in locals():
+            return jsonify({"error": "upstream_unreachable", "details": str(last_exc)}), 502
+        
+        # Return upstream body and status verbatim (helpful to see 403 details)
+        return Response(response.content, status=response.status_code, content_type=response.headers.get('Content-Type', 'application/json'))
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
