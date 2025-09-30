@@ -190,6 +190,42 @@
           p.hdl = getQuantityValueAndUnit(hdl[0]);
           p.ldl = getQuantityValueAndUnit(ldl[0]);
 
+          // Render additional lists (basic summaries)
+          function renderList(elId, items, formatter) {
+            var el = document.getElementById(elId);
+            if (!el) return;
+            el.innerHTML = '';
+            (items || []).slice(0, 10).forEach(function(item){
+              var li = document.createElement('li');
+              li.textContent = formatter(item);
+              el.appendChild(li);
+            });
+          }
+
+          renderList('meds-list', medsList, function(r){
+            var med = (r.medicationCodeableConcept && r.medicationCodeableConcept.text) || 'Medication';
+            var when = (r.authoredOn || '').toString();
+            return med + (when ? (' — ' + when) : '');
+          });
+
+          renderList('allergies-list', allergiesList, function(r){
+            var code = (r.code && r.code.text) || 'Allergy';
+            var status = r.clinicalStatus && (r.clinicalStatus.text || (r.clinicalStatus.coding && r.clinicalStatus.coding[0] && r.clinicalStatus.coding[0].code)) || '';
+            return code + (status ? (' — ' + status) : '');
+          });
+
+          renderList('conditions-list', conditionsList, function(r){
+            var code = (r.code && r.code.text) || 'Condition';
+            var onset = r.onsetDateTime || '';
+            return code + (onset ? (' — onset ' + onset) : '');
+          });
+
+          renderList('documents-list', documentsList, function(r){
+            var type = (r.type && r.type.text) || 'Document';
+            var date = r.date || '';
+            return type + (date ? (' — ' + date) : '');
+          });
+
           ret.resolve(p);
         }).catch(function(err){
           console.log('Proxy fetch error:', err);
