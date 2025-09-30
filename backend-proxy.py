@@ -15,17 +15,29 @@ app = Flask(__name__)
 CORS(app, resources={r"/proxy/*": {"origins": "*", "allow_headers": ["Authorization", "Content-Type"], "expose_headers": ["Authorization"]}})
 
 # Cerner FHIR endpoints
+# Default Cerner base; proxy can also target other allowed FHIR bases (e.g., SMART Health IT)
 CERNER_BASE_URL = "https://fhir-ehr-code.cerner.com/r4/ec2458f2-1e24-41c8-b71b-0e701af7583d"
+ALLOWED_BASES = {
+    CERNER_BASE_URL,
+    # SMART Health IT R4 sandbox base
+    "https://launch.smarthealthit.org/v/r4/fhir"
+}
 
 @app.route('/proxy/<path:endpoint>')
 def proxy_request(endpoint):
     """Proxy requests to Cerner FHIR server"""
     try:
-        # Get the full URL
-        url = f"{CERNER_BASE_URL}/{endpoint}"
+        # Choose upstream base: default Cerner, or `base` query override if allowed
+        upstream_base = request.args.get('base', CERNER_BASE_URL)
+        if upstream_base not in ALLOWED_BASES:
+            upstream_base = CERNER_BASE_URL
+        # Build full upstream URL
+        url = f"{upstream_base}/{endpoint}"
         
         # Forward query parameters
         query_params = request.args.to_dict()
+        # Remove internal-only controls not meant for upstream
+        query_params.pop('base', None)
         
         # Forward only necessary headers
         incoming = dict(request.headers)

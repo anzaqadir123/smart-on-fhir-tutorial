@@ -46,6 +46,8 @@
         
         // Build Authorization header using SMART access token
         var accessToken = smart && smart.tokenResponse && smart.tokenResponse.access_token;
+        // Upstream FHIR base for proxy (handles Cerner vs SMART Health IT)
+        var upstreamBase = smart && smart.server && smart.server.serviceUrl;
         // Derive patient id strictly from SMART context (handles function or string forms)
         var patientId = null;
         if (smart && smart.patient) {
@@ -60,7 +62,7 @@
         
         // Log the patient read request
         console.log('Making patient read request via proxy...');
-        var pt = fetch(PROXY_BASE_URL + '/Patient/' + encodeURIComponent(patientId), {
+        var pt = fetch(PROXY_BASE_URL + '/Patient/' + encodeURIComponent(patientId) + '?base=' + encodeURIComponent(upstreamBase), {
           headers: {
             'Authorization': 'Bearer ' + accessToken,
             'Accept': 'application/fhir+json'
@@ -69,7 +71,7 @@
         
         // Helper to fetch any patient-scoped resource via proxy
         function fetchResource(resourceType, extraQuery) {
-          var url = PROXY_BASE_URL + '/' + resourceType + '?patient=' + encodeURIComponent(patientId);
+          var url = PROXY_BASE_URL + '/' + resourceType + '?patient=' + encodeURIComponent(patientId) + '&base=' + encodeURIComponent(upstreamBase);
           if (extraQuery) {
             url += '&' + extraQuery;
           }
