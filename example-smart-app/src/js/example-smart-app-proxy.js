@@ -67,9 +67,14 @@
             'Authorization': 'Bearer ' + accessToken,
             'Accept': 'application/fhir+json'
           }
-        }).then(function(resp){ return resp.json(); });
+        }).then(function(resp){ return resp.json(); })
+        .catch(function(err){
+          console.warn('Failed to fetch Patient:', err);
+          // Return minimal patient object to allow rendering
+          return { name: [{ given: ['Unknown'], family: 'Unknown' }], gender: 'unknown', birthDate: '' };
+        });
         
-        // Helper to fetch any patient-scoped resource via proxy
+        // Helper to fetch any patient-scoped resource via proxy with graceful fallback
         function fetchResource(resourceType, extraQuery) {
           var url = PROXY_BASE_URL + '/' + resourceType + '?patient=' + encodeURIComponent(patientId) + '&base=' + encodeURIComponent(upstreamBase);
           if (extraQuery) {
@@ -85,6 +90,10 @@
           .then(function(bundle){
             var entries = (bundle && bundle.entry) ? bundle.entry : [];
             return entries.map(function(e){ return e.resource; });
+          })
+          .catch(function(err){
+            console.warn('Failed to fetch ' + resourceType + ':', err);
+            return []; // Return empty array to allow other calls to succeed
           });
         }
 
