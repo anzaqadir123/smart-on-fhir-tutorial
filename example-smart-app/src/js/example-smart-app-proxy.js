@@ -39,6 +39,8 @@
     }
     
     console.log('Extracted relative path:', relativePath);
+    console.log('Upstream base:', upstreamBase);
+    console.log('Proxy base:', proxyBaseUrl);
     
     // Determine file extension based on content type
     var extension = '';
@@ -60,6 +62,10 @@
     var proxyUrl = proxyBaseUrl + '/' + relativePath + '?base=' + encodeURIComponent(upstreamBase);
     
     console.log('Downloading via proxy:', proxyUrl);
+    console.log('Request headers:', {
+      'Authorization': 'Bearer ' + accessToken.substring(0, 20) + '...',
+      'Accept': contentType
+    });
     
     fetch(proxyUrl, {
       headers: {
@@ -68,12 +74,22 @@
       }
     })
     .then(function(response) {
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+      
       if (!response.ok) {
-        throw new Error('Download failed: ' + response.status);
+        // Try to get error details
+        return response.text().then(function(text) {
+          console.error('Error response body:', text);
+          throw new Error('Download failed: ' + response.status + ' - ' + text);
+        });
       }
       return response.blob();
     })
     .then(function(blob) {
+      console.log('Downloaded blob size:', blob.size, 'bytes');
+      console.log('Blob type:', blob.type);
+      
       // Create download link
       var url = window.URL.createObjectURL(blob);
       var a = document.createElement('a');
@@ -88,7 +104,8 @@
     })
     .catch(function(error) {
       console.error('Download error:', error);
-      alert('Failed to download document: ' + error.message);
+      console.error('Full error:', JSON.stringify(error));
+      alert('Failed to download document: ' + error.message + '\n\nCheck console for details.');
     });
   }
   

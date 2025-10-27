@@ -48,7 +48,11 @@ def proxy_request(endpoint):
         
         # Debug log to verify Authorization header presence
         auth_present = bool(headers.get('Authorization'))
-        print(f"[proxy] -> upstream {url} | Authorization header present: {auth_present}")
+        print(f"[proxy] -> upstream {url}")
+        print(f"[proxy] Authorization header present: {auth_present}")
+        print(f"[proxy] Accept header: {headers.get('Accept', 'not set')}")
+        print(f"[proxy] Query params: {query_params}")
+        print(f"[proxy] Endpoint: {endpoint}")
         
         # Make the request to Cerner with simple retries on transient 5xx
         attempts = 0
@@ -58,7 +62,10 @@ def proxy_request(endpoint):
             try:
                 response = requests.get(url, params=query_params, headers=headers, timeout=20)
                 print(f"[proxy] upstream status: {response.status_code}")
+                print(f"[proxy] upstream content-type: {response.headers.get('Content-Type', 'not set')}")
+                print(f"[proxy] upstream content-length: {response.headers.get('Content-Length', 'not set')}")
                 if response.status_code in (502, 503, 504):
+                    print(f"[proxy] Retry attempt {attempts}/3 due to {response.status_code}")
                     time.sleep(1.5 * attempts)
                     continue
                 break
