@@ -71,7 +71,9 @@ def proxy_request(endpoint):
             return jsonify({"error": "upstream_unreachable", "details": str(last_exc)}), 502
         
         # Return upstream body and status verbatim (helpful to see 403 details)
-        return Response(response.content, status=response.status_code, content_type=response.headers.get('Content-Type', 'application/json'))
+        # Preserve the content type from upstream (for binary downloads)
+        content_type = response.headers.get('Content-Type', 'application/json')
+        return Response(response.content, status=response.status_code, content_type=content_type)
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500

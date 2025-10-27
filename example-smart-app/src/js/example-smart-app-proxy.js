@@ -1,4 +1,97 @@
 (function(window){
+  // Function to download document content
+  function downloadDocument(docId, attachment, accessToken, upstreamBase) {
+    console.log('Downloading document:', attachment.url);
+    
+    var attachmentUrl = attachment.url;
+    var contentType = attachment.contentType || 'application/octet-stream';
+    
+    // Extract the relative path from the full URL
+    // Handle different URL structures:
+    // "https://fhir-ehr-code.cerner.com/r4/ec2458f2-1e24-41c8-b71b-0e701af7583d/Binary/R-197776007"
+    // Try to find the resource type (Binary, DocumentReference, etc.) and its ID
+    var relativePath = '';
+    try {
+      // Try to extract relative path from URL
+      var urlObj = new URL(attachmentUrl);
+      var pathParts = urlObj.pathname.split('/').filter(function(p) { return p !== ''; });
+      
+      // Find the resource type and ID in the path
+      // Usually it's in format: /r4/tenant-id/Binary/binary-id or /ResourceType/id
+      for (var i = 0; i < pathParts.length - 1; i++) {
+        if (pathParts[i] === 'Binary' || pathParts[i] === 'DocumentReference' || pathParts[i] === 'DocumentReference') {
+          relativePath = pathParts[i] + '/' + pathParts[i + 1];
+          break;
+        }
+      }
+      
+      // If we didn't find a clear pattern, use the last two path segments
+      if (!relativePath && pathParts.length >= 2) {
+        relativePath = pathParts[pathParts.length - 2] + '/' + pathParts[pathParts.length - 1];
+      }
+    } catch (e) {
+      console.warn('Failed to parse URL, using simple extraction:', e);
+      // Fallback: simple extraction
+      var urlParts = attachmentUrl.split('/');
+      if (urlParts.length >= 2) {
+        relativePath = urlParts.slice(-2).join('/');
+      }
+    }
+    
+    console.log('Extracted relative path:', relativePath);
+    
+    // Determine file extension based on content type
+    var extension = '';
+    if (contentType.includes('text/plain')) {
+      extension = '.txt';
+    } else if (contentType.includes('application/xml')) {
+      extension = '.xml';
+    } else if (contentType.includes('pdf')) {
+      extension = '.pdf';
+    } else if (contentType.includes('image')) {
+      if (contentType.includes('jpeg') || contentType.includes('jpg')) {
+        extension = '.jpg';
+      } else if (contentType.includes('png')) {
+        extension = '.png';
+      }
+    }
+    
+    // Download via proxy
+    var proxyUrl = PROXY_BASE_URL + '/' + relativePath + '?base=' + encodeURIComponent(upstreamBase);
+    
+    console.log('Downloading via proxy:', proxyUrl);
+    
+    fetch(proxyUrl, {
+      headers: {
+        'Authorization': 'Bearer ' + accessToken,
+        'Accept': contentType
+      }
+    })
+    .then(function(response) {
+      if (!response.ok) {
+        throw new Error('Download failed: ' + response.status);
+      }
+      return response.blob();
+    })
+    .then(function(blob) {
+      // Create download link
+      var url = window.URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'document_' + docId + extension;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+      console.log('Document downloaded successfully');
+    })
+    .catch(function(error) {
+      console.error('Download error:', error);
+      alert('Failed to download document: ' + error.message);
+    });
+  }
+  
   window.extractData = function() {
     var ret = $.Deferred();
     
@@ -231,11 +324,40 @@
             return code + (onset ? (' — onset ' + onset) : '');
           });
 
-          renderList('documents-list', documentsList, function(r){
-            var type = (r.type && r.type.text) || 'Document';
-            var date = r.date || '';
-            return type + (date ? (' — ' + date) : '');
-          });
+          // Render documents with download capability
+          var docsEl = document.getElementById('documents-list');
+          if (docsEl) {
+            docsEl.innerHTML = '';
+            (documentsList || []).slice(0, 10).forEach(function(r){
+              var li = document.createElement('li');
+              
+              var type = (r.type && r.type.text) || 'Document';
+              var date = r.date || '';
+              var dateStr = date ? (' — ' + date) : '';
+              
+              var displayText = type + dateStr;
+              li.appendChild(document.createTextNode(displayText));
+              
+              // Add download buttons for each attachment
+              if (r.content && Array.isArray(r.content)) {
+                r.content.forEach(function(content, index){
+                  var attachment = content.attachment;
+                  if (attachment && attachment.url) {
+                    var btn = document.createElement('button');
+                    btn.textContent = 'Download ' + (attachment.contentType || 'file');
+                    btn.className = 'download-btn';
+                    btn.style.marginLeft = '10px';
+                    btn.onclick = function(){
+                      downloadDocument(r.id, attachment, accessToken, upstreamBase);
+                    };
+                    li.appendChild(btn);
+                  }
+                });
+              }
+              
+              docsEl.appendChild(li);
+            });
+          }
 
           ret.resolve(p);
         }).catch(function(err){
