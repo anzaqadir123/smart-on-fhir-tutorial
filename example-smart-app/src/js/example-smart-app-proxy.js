@@ -1,6 +1,6 @@
 (function(window){
   // Function to download document content
-  function downloadDocument(docId, attachment, accessToken, upstreamBase) {
+  function downloadDocument(docId, attachment, accessToken, upstreamBase, proxyBaseUrl) {
     console.log('Downloading document:', attachment.url);
     
     var attachmentUrl = attachment.url;
@@ -57,7 +57,7 @@
     }
     
     // Download via proxy
-    var proxyUrl = PROXY_BASE_URL + '/' + relativePath + '?base=' + encodeURIComponent(upstreamBase);
+    var proxyUrl = proxyBaseUrl + '/' + relativePath + '?base=' + encodeURIComponent(upstreamBase);
     
     console.log('Downloading via proxy:', proxyUrl);
     
@@ -343,14 +343,14 @@
                 r.content.forEach(function(content, index){
                   var attachment = content.attachment;
                   if (attachment && attachment.url) {
-                    var btn = document.createElement('button');
-                    btn.textContent = 'Download ' + (attachment.contentType || 'file');
-                    btn.className = 'download-btn';
-                    btn.style.marginLeft = '10px';
-                    btn.onclick = function(){
-                      downloadDocument(r.id, attachment, accessToken, upstreamBase);
-                    };
-                    li.appendChild(btn);
+                  var btn = document.createElement('button');
+                  btn.textContent = 'Download ' + (attachment.contentType || 'file');
+                  btn.className = 'download-btn';
+                  btn.style.marginLeft = '10px';
+                  btn.onclick = function(){
+                    downloadDocument(r.id, attachment, accessToken, upstreamBase, PROXY_BASE_URL);
+                  };
+                  li.appendChild(btn);
                   }
                 });
               }
