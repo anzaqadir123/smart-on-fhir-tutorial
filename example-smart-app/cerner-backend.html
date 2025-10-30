@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cerner Backend Services Demo (Browser)</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 { color: #333; }
+    .warning {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      padding: 15px;
+      border-radius: 4px;
+      margin: 20px 0;
+    }
+    .config {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 4px;
+      margin: 20px 0;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover { background: #0056b3; }
+    .result {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      padding: 15px;
+      border-radius: 4px;
+      margin-top: 20px;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    pre {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .step {
+      margin: 20px 0;
+      padding: 15px;
+      background: #e7f3ff;
+      border-left: 4px solid #007bff;
+      border-radius: 4px;
+    }
+    label {
+      display: block;
+      margin: 10px 0 5px 0;
+      font-weight: bold;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔐 Cerner Backend Services Flow (Browser Demo)</h1>
+    
+    <div class="warning">
+      <strong>⚠️ WARNING:</strong> This is a demonstration page for learning purposes. 
+      It shows the client credentials flow end-to-end in the browser. 
+      <strong>Never expose private keys in production browser code!</strong> 
+      For production, use the backend service (`smartBackendFastAPI.py`).
+    </div>
+
+    <div class="config">
+      <h3>Configuration</h3>
+      <label>Client ID:</label>
+      <input type="text" id="clientId" value="cbebea6b-836f-4121-82dc-bbd0c712dd81">
+      
+      <label>Token Endpoint:</label>
+      <input type="text" id="tokenEndpoint" value="https://authorization.cerner.com/tenants/ec2458f2-1e24-41c8-b71b-0e701af7583d/protocols/oauth2/profiles/smart-v1/token">
+      
+      <label>FHIR Base URL:</label>
+      <input type="text" id="fhirBaseUrl" value="https://fhir-ehr-code.cerner.com/r4/ec2458f2-1e24-41c8-b71b-0e701af7583d">
+      
+      <label>Patient ID:</label>
+      <input type="text" id="patientId" value="12724066">
+      
+      <label>Key ID (KID):</label>
+      <input type="text" id="kid" value="1EBx0b3f8kKtQAW7NdbiA7Tx17yuyxWa">
+      
+      <label>Private Key (PEM format):</label>
+      <textarea id="privateKey" rows="10" placeholder="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"></textarea>
+      
+      <button onclick="fetchPatient()">🔍 Fetch Patient from Cerner</button>
+      <button onclick="clearResults()">🗑️ Clear Results</button>
+    </div>
+
+    <div id="results"></div>
+  </div>
+
+  <!-- jsrsasign library for JWT signing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/10.5.25/jsrsasign-all-min.js"></script>
+
+  <script>
+    async function fetchPatient() {
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = '<div class="result"><p>🔄 Processing...</p></div>';
+
+      try {
+        // Get configuration
+        const clientId = document.getElementById('clientId').value.trim();
+        const tokenEndpoint = document.getElementById('tokenEndpoint').value.trim();
+        const fhirBaseUrl = document.getElementById('fhirBaseUrl').value.trim();
+        const patientId = document.getElementById('patientId').value.trim();
+        const kid = document.getElementById('kid').value.trim();
+        const privateKeyPem = document.getElementById('privateKey').value.trim();
+
+        if (!clientId || !tokenEndpoint || !fhirBaseUrl || !patientId || !kid || !privateKeyPem) {
+          throw new Error('Please fill in all configuration fields');
+        }
+
+        // Step 1: Create JWT Client Assertion
+        resultsDiv.innerHTML += '<div class="step"><h3>Step 1: Creating JWT Client Assertion</h3></div>';
+        
+        const now = Math.floor(Date.now() / 1000);
+        const payload = {
+          iss: clientId,
+          sub: clientId,
+          aud: tokenEndpoint,
+          exp: now + 300,  // 5 minutes
+          iat: now,
+          jti: Math.random().toString(36).substring(2) + Date.now().toString()
+        };
+
+        const header = {
+          alg: "RS384",
+          typ: "JWT",
+          kid: kid
+        };
+
+        // Sign JWT using jsrsasign
+        const jwt = KJUR.jws.JWS.sign("RS384", JSON.stringify(header), JSON.stringify(payload), privateKeyPem);
+        
+        resultsDiv.innerHTML += `<div class="result"><strong>JWT Created:</strong><pre>${jwt}</pre>
+          <strong>JWT Payload:</strong><pre>${JSON.stringify(payload, null, 2)}</pre></div>`;
+
+        // Step 2: Exchange JWT for Access Token
+        resultsDiv.innerHTML += '<div class="step"><h3>Step 2: Exchanging JWT for Access Token</h3></div>';
+
+        const tokenResp = await fetch(tokenEndpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            scope: "system/Patient.read",
+            grant_type: "client_credentials",
+            client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+            client_assertion: jwt
+          })
+        });
+
+        if (!tokenResp.ok) {
+          const errorText = await tokenResp.text();
+          throw new Error(`Token request failed (${tokenResp.status}): ${errorText}`);
+        }
+
+        const tokenJson = await tokenResp.json();
+        
+        resultsDiv.innerHTML += `<div class="result"><strong>✅ Token Received:</strong>
+          <pre>${JSON.stringify(tokenJson, null, 2)}</pre></div>`;
+
+        // Step 3: Fetch Patient from Cerner FHIR API
+        resultsDiv.innerHTML += '<div class="step"><h3>Step 3: Fetching Patient from Cerner FHIR API</h3></div>';
+
+        const patientResp = await fetch(`${fhirBaseUrl}/Patient/${patientId}`, {
+          headers: {
+            Authorization: `Bearer ${tokenJson.access_token}`,
+            Accept: "application/fhir+json"
+          }
+        });
+
+        if (!patientResp.ok) {
+          const errorText = await patientResp.text();
+          throw new Error(`Patient request failed (${patientResp.status}): ${errorText}`);
+        }
+
+        const patientData = await patientResp.json();
+        
+        resultsDiv.innerHTML += `<div class="result"><strong>✅ Patient Data Retrieved:</strong>
+          <pre>${JSON.stringify(patientData, null, 2)}</pre></div>`;
+
+        // Extract patient name if available
+        if (patientData.name && patientData.name[0]) {
+          const name = patientData.name[0];
+          const given = Array.isArray(name.given) ? name.given.join(' ') : name.given;
+          const family = name.family;
+          resultsDiv.innerHTML += `<div class="result" style="background: #d4edda; border-color: #c3e6cb;">
+            <h3>Patient Summary</h3>
+            <p><strong>Name:</strong> ${given} ${family}</p>
+            <p><strong>ID:</strong> ${patientData.id}</p>
+            <p><strong>Gender:</strong> ${patientData.gender || 'Unknown'}</p>
+            <p><strong>Birth Date:</strong> ${patientData.birthDate || 'Unknown'}</p>
+          </div>`;
+        }
+
+      } catch (error) {
+        resultsDiv.innerHTML += `<div class="result" style="background: #f8d7da; border-color: #f5c6cb;">
+          <h3>❌ Error</h3>
+          <pre>${error.message}</pre>
+          ${error.stack ? `<pre>${error.stack}</pre>` : ''}
+        </div>`;
+      }
+    }
+
+    function clearResults() {
+      document.getElementById('results').innerHTML = '';
+    }
+
+    // Auto-load on page load (optional)
+    // window.onload = () => fetchPatient();
+  </script>
+</body>
+</html>
+

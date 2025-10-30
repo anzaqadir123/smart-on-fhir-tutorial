@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cerner Backend Services Client</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 { color: #333; }
+    .info {
+      background: #d1ecf1;
+      border: 1px solid #bee5eb;
+      padding: 15px;
+      border-radius: 4px;
+      margin: 20px 0;
+    }
+    .form-group {
+      margin: 15px 0;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: #555;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 5px;
+    }
+    button:hover { background: #0056b3; }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .result {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      padding: 15px;
+      border-radius: 4px;
+      margin-top: 20px;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    .result pre {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      margin: 0;
+    }
+    .success {
+      background: #d4edda;
+      border-color: #c3e6cb;
+      color: #155724;
+    }
+    .error {
+      background: #f8d7da;
+      border-color: #f5c6cb;
+      color: #721c24;
+    }
+    .loading {
+      color: #007bff;
+      font-style: italic;
+    }
+    .endpoint-group {
+      display: flex;
+      gap: 10px;
+      margin: 10px 0;
+    }
+    .endpoint-group input {
+      flex: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔐 Cerner Backend Services Client</h1>
+    
+    <div class="info">
+      <strong>ℹ️ Info:</strong> This page calls your FastAPI backend service (running at 
+      <span id="baseUrl">http://localhost:8000</span>). 
+      The backend handles JWT creation, token exchange, and Cerner API calls securely.
+    </div>
+
+    <div class="form-group">
+      <label>Backend API Base URL:</label>
+      <input type="text" id="baseUrlInput" value="http://localhost:8000" onchange="updateBaseUrl()">
+    </div>
+
+    <div class="form-group">
+      <label>Test Connection:</label>
+      <button onclick="checkHealth()">🏥 Check Backend Health</button>
+      <span id="healthStatus"></span>
+    </div>
+
+    <hr>
+
+    <h2>Patient Operations</h2>
+    
+    <div class="form-group">
+      <label>Patient ID:</label>
+      <input type="text" id="patientId" value="12724066" placeholder="e.g., 12724066">
+    </div>
+
+    <div class="form-group">
+      <button onclick="fetchPatient()">👤 Fetch Patient</button>
+      <button onclick="fetchPatientObservations()">📊 Fetch Patient Observations</button>
+    </div>
+
+    <hr>
+
+    <h2>Document Operations</h2>
+    
+    <div class="form-group">
+      <label>DocumentReference ID:</label>
+      <input type="text" id="docId" value="" placeholder="Enter DocumentReference ID">
+    </div>
+
+    <div class="form-group">
+      <button onclick="fetchDocumentReference()">📄 Fetch DocumentReference</button>
+    </div>
+
+    <hr>
+
+    <h2>Create Resource</h2>
+    
+    <div class="form-group">
+      <label>FHIR Condition Resource (JSON):</label>
+      <textarea id="conditionJson" rows="8" placeholder='{"resourceType": "Condition", "subject": {"reference": "Patient/12724066"}, ...}'></textarea>
+    </div>
+
+    <div class="form-group">
+      <button onclick="createCondition()">➕ Create Condition</button>
+    </div>
+
+    <hr>
+
+    <div id="results"></div>
+  </div>
+
+  <script>
+    let BASE_URL = "http://localhost:8000";
+
+    function updateBaseUrl() {
+      BASE_URL = document.getElementById('baseUrlInput').value.trim();
+      document.getElementById('baseUrl').textContent = BASE_URL;
+    }
+
+    function clearResults() {
+      document.getElementById('results').innerHTML = '';
+    }
+
+    function showResult(title, data, isError = false) {
+      const resultsDiv = document.getElementById('results');
+      const className = isError ? 'error' : 'success';
+      resultsDiv.innerHTML = `
+        <div class="result ${className}">
+          <h3>${title}</h3>
+          <pre>${typeof data === 'string' ? data : JSON.stringify(data, null, 2)}</pre>
+        </div>
+      `;
+    }
+
+    async function checkHealth() {
+      const statusSpan = document.getElementById('healthStatus');
+      statusSpan.innerHTML = '<span class="loading">Checking...</span>';
+      
+      try {
+        const response = await fetch(`${BASE_URL}/health`);
+        const data = await response.json();
+        
+        if (response.ok) {
+          statusSpan.innerHTML = '<span style="color: green;">✅ Connected</span>';
+          showResult('Backend Health Check', data);
+        } else {
+          throw new Error(JSON.stringify(data));
+        }
+      } catch (error) {
+        statusSpan.innerHTML = '<span style="color: red;">❌ Failed</span>';
+        showResult('Backend Health Check Failed', error.message, true);
+      }
+    }
+
+    async function fetchPatient() {
+      const patientId = document.getElementById('patientId').value.trim();
+      if (!patientId) {
+        alert('Please enter a Patient ID');
+        return;
+      }
+
+      clearResults();
+      showResult('Loading...', 'Fetching patient data...', false);
+
+      try {
+        const response = await fetch(`${BASE_URL}/cerner/patient/${patientId}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || `HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        // Extract patient summary
+        let summary = '';
+        if (data.name && data.name[0]) {
+          const name = data.name[0];
+          const given = Array.isArray(name.given) ? name.given.join(' ') : name.given;
+          const family = name.family;
+          summary = `\nPatient Summary:\n  Name: ${given} ${family}\n  ID: ${data.id}\n  Gender: ${data.gender || 'Unknown'}\n  Birth Date: ${data.birthDate || 'Unknown'}\n\n`;
+        }
+
+        showResult(`✅ Patient Retrieved: ${patientId}`, summary + JSON.stringify(data, null, 2));
+
+      } catch (error) {
+        showResult('❌ Error Fetching Patient', error.message, true);
+      }
+    }
+
+    async function fetchPatientObservations() {
+      const patientId = document.getElementById('patientId').value.trim();
+      if (!patientId) {
+        alert('Please enter a Patient ID');
+        return;
+      }
+
+      clearResults();
+      showResult('Loading...', 'Fetching observations...', false);
+
+      try {
+        const response = await fetch(`${BASE_URL}/cerner/patient/${patientId}/observations`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || `HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const total = data.total || (Array.isArray(data.entry) ? data.entry.length : 0);
+        showResult(`✅ Observations Retrieved: ${total} found`, JSON.stringify(data, null, 2));
+
+      } catch (error) {
+        showResult('❌ Error Fetching Observations', error.message, true);
+      }
+    }
+
+    async function fetchDocumentReference() {
+      const docId = document.getElementById('docId').value.trim();
+      if (!docId) {
+        alert('Please enter a DocumentReference ID');
+        return;
+      }
+
+      clearResults();
+      showResult('Loading...', 'Fetching document reference...', false);
+
+      try {
+        const response = await fetch(`${BASE_URL}/cerner/documentreference/${docId}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || `HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        showResult(`✅ DocumentReference Retrieved: ${docId}`, JSON.stringify(data, null, 2));
+
+      } catch (error) {
+        showResult('❌ Error Fetching DocumentReference', error.message, true);
+      }
+    }
+
+    async function createCondition() {
+      const conditionJson = document.getElementById('conditionJson').value.trim();
+      if (!conditionJson) {
+        alert('Please enter a Condition resource (JSON)');
+        return;
+      }
+
+      let conditionData;
+      try {
+        conditionData = JSON.parse(conditionJson);
+      } catch (e) {
+        alert('Invalid JSON. Please check your Condition resource format.');
+        return;
+      }
+
+      clearResults();
+      showResult('Loading...', 'Creating condition...', false);
+
+      try {
+        const response = await fetch(`${BASE_URL}/cerner/condition`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(conditionData)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || `HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        showResult(`✅ Condition Created: ${data.id}`, JSON.stringify(data, null, 2));
+
+      } catch (error) {
+        showResult('❌ Error Creating Condition', error.message, true);
+      }
+    }
+
+    // Check backend health on page load
+    window.onload = () => {
+      checkHealth();
+    };
+  </script>
+</body>
+</html>
+
