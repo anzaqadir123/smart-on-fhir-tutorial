@@ -14,6 +14,20 @@ import json
 import time
 import os
 from typing import Optional
+from pathlib import Path
+import base64
+import uuid
+from typing import Union
+try:
+    from cryptography.hazmat.primitives.serialization import load_pem_private_key
+except Exception:
+    load_pem_private_key = None  # cryptography optional; required for encrypted PEMs
+try:
+    from dotenv import load_dotenv  # type: ignore
+    load_dotenv()
+except Exception:
+    # dotenv is optional; if unavailable, env vars can still be set by the shell
+    pass
 
 app = FastAPI(title="Cerner Backend Services API")
 
@@ -44,20 +58,49 @@ CERNER_FHIR_BASE = os.getenv(
 # Key ID (KID) - must match the key registered with Cerner
 KID = os.getenv("CERNER_KID", "1EBx0b3f8kKtQAW7NdbiA7Tx17yuyxWa")
 
-# Private key path - load from environment variable or file
-PRIVATE_KEY_PATH = os.getenv("CERNER_PRIVATE_KEY_PATH", "private_key.pem")
+# Private key: prefer env var (CERNER_PRIVATE_KEY). If missing, try file path.
+PRIVATE_KEY: Union[str, None] = os.getenv("CERNER_PRIVATE_KEY")
+PRIVATE_KEY_OBJ = None  # When using encrypted PEMs, hold a key object
 
-# Load private key
-try:
-    with open(PRIVATE_KEY_PATH, "r") as f:
-        PRIVATE_KEY = f.read()
-except FileNotFoundError:
-    # Try environment variable as fallback
-    PRIVATE_KEY = os.getenv("CERNER_PRIVATE_KEY")
-    if not PRIVATE_KEY:
+# Allow base64-encoded private key as alternative
+if not PRIVATE_KEY:
+    PRIVATE_KEY_B64 = os.getenv("CERNER_PRIVATE_KEY_B64")
+    if PRIVATE_KEY_B64:
+        try:
+            PRIVATE_KEY = base64.b64decode(PRIVATE_KEY_B64).decode("utf-8")
+        except Exception as exc:
+            raise ValueError(f"Failed to decode CERNER_PRIVATE_KEY_B64: {exc}")
+
+# Fallback to file path (absolute or relative)
+if not PRIVATE_KEY:
+    PRIVATE_KEY_PATH = os.getenv("CERNER_PRIVATE_KEY_PATH", "private_key.pem")
+    candidate_path = Path(PRIVATE_KEY_PATH)
+    if not candidate_path.is_file():
+        # try relative to project root (file location)
+        project_root = Path(__file__).resolve().parent
+        alt_path = project_root / PRIVATE_KEY_PATH
+        if alt_path.is_file():
+            candidate_path = alt_path
+    if not candidate_path.is_file():
         raise ValueError(
-            f"Private key not found at {PRIVATE_KEY_PATH} and CERNER_PRIVATE_KEY env var not set. "
-            "Please provide the private key for JWT signing."
+            "Private key not provided. Set one of: "
+            "CERNER_PRIVATE_KEY (PEM contents), "
+            "CERNER_PRIVATE_KEY_B64 (base64 PEM), or "
+            f"CERNER_PRIVATE_KEY_PATH (file path, tried '{PRIVATE_KEY_PATH}')."
+        )
+    PRIVATE_KEY = candidate_path.read_text()
+
+# If the key appears to be encrypted, or a passphrase is provided, try to load with cryptography
+PASSPHRASE = os.getenv("CERNER_PRIVATE_KEY_PASSPHRASE")
+if (PASSPHRASE or (PRIVATE_KEY and "ENCRYPTED" in PRIVATE_KEY)) and load_pem_private_key is not None:
+    try:
+        PRIVATE_KEY_OBJ = load_pem_private_key(
+            PRIVATE_KEY.encode("utf-8"),
+            password=None if not PASSPHRASE else PASSPHRASE.encode("utf-8")
+        )
+    except Exception as exc:
+        raise ValueError(
+            f"Failed to load encrypted private key. Ensure CERNER_PRIVATE_KEY_PASSPHRASE is correct. Error: {exc}"
         )
 
 # ============================================================================
@@ -100,7 +143,7 @@ def get_access_token(scope: str = "system/Patient.read system/Observation.read")
         "aud": CERNER_TOKEN_URL,       # Audience = token endpoint
         "exp": now + 300,              # Expires in 5 minutes
         "iat": now,                    # Issued at
-        "jti": f"{now}-{id(payload)}"  # Unique token ID
+        "jti": str(uuid.uuid4())       # Unique token ID
     }
     
     header = {
@@ -113,7 +156,7 @@ def get_access_token(scope: str = "system/Patient.read system/Observation.read")
         # Sign JWT with private key using RS384 algorithm
         client_assertion = jwt.encode(
             payload,
-            PRIVATE_KEY,
+            PRIVATE_KEY_OBJ if PRIVATE_KEY_OBJ is not None else PRIVATE_KEY,
             algorithm="RS384",
             headers=header
         )
