@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8" />
+
+    <title>EPIC Patient App</title>
+
+    <!-- import fhir-client library-->
+
+    <script src="./example-smart-app/lib/js/fhir-client-v0.1.12.js"></script>
+
+    <link rel="stylesheet" type="text/css" href="./app.css" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Nanum+Gothic+Coding&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+</head>
+
+<body>
+    <div class="wrapper">
+        <div class="main-wrapper">
+            <div class="sidebar-left">
+                EHR Sidebar
+            </div>
+            <div class="body-wrapper">
+
+                <div class="disclaimerHead">
+                    <h3><b>Reminder:</b> Launch via Epic SMART patient mode with scopes:
+                        launch/patient, patient/*.read, openid, profile, fhirUser.</h3>
+                </div>
+
+                <div class="ehr-header">
+                    <h3 style="color: #3c763d;">Simulated Patient View:: EPIC</h3>
+                    <div style="text-align: right;"><i class="fa fa-user user"></i>&nbsp; Patient ID: <b
+                            style="color: #0053a1;" id="patientIdLabel"></b>
+                        <p id="encounterIdLabel"></p>
+                    </div>
+                </div>
+
+                <div class="helper-text" style="margin-bottom: 20px;">
+                    <p id="helperMessage">Use <code>epic-patient-launch.html</code> to initiate OAuth with the Epic
+                        sandbox. Append <code>?target=cerner</code> to test the Cerner configuration.</p>
+                </div>
+
+                <div class="header-section2">
+                    <h2 id="patient_header">Patient Summary</h2>
+                    <div class="row">
+                        <div class="col3">
+                            <div>Name: <span id="patientS"></span></div>
+                            <div>Ethnicity: <span id="ethnicityS"></span></div>
+                        </div>
+                        <div class="col3">
+                            <div>Chart ID: <span id="cidS"></span></div>
+                            <div>Race: <span id="raceS"></span></div>
+                        </div>
+                        <div class="col3">
+                            <div>DOB: <span id="dobS"></span></div>
+                            <div>Address: <span id="addressS"></span></div>
+                        </div>
+                        <div class="col3">
+                            <div>Gender: <span id="genderS"></span></div>
+                            <div>Primary Contact: <span id="phoneS"></span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="box-row">
+                    <div class="box-tile">
+                        <div class="box-header">
+                            <div class="box-no">
+                                1
+                            </div>
+                            <div class="box-title">
+                                Advance Directive
+                            </div>
+                            <div class="add-fav">
+                                <i class="fa fa-heart-o"></i>
+                            </div>
+                        </div>
+                        <div class="box-statue">
+
+                            <span>Source</span>
+
+                            <span class="status-label">uploaded</span>
+                        </div>
+                        <div class="box-disc">
+                            <p>Review and confirm your directive details with your care team.</p>
+                        </div>
+                        <div class="disclaimer">
+                            <strong>Reminder:</strong>
+                            <p>Contact support if any information appears outdated.</p>
+                        </div>
+                        <div class="box-statue">
+                            <span>Type:</span>
+                            <span class="type-label">Living Will</span>
+                        </div>
+                        <button class="detail-btn"> View Details</button>
+                    </div>
+
+                    <div class="box-tile">
+                        <div class="box-header">
+                            <div class="box-no">
+                                2
+                            </div>
+                            <div class="box-title">
+                                Immunization Record
+                            </div>
+                            <div class="add-fav">
+                                <i class="fa fa-heart-o"></i>
+                            </div>
+                        </div>
+                        <div class="box-statue">
+                            <span>Source</span>
+                            <span class="status-label">verified</span>
+                        </div>
+                        <div class="box-disc">
+                            <p>Stay current with recommended vaccinations and boosters.</p>
+                        </div>
+                        <div class="disclaimer">
+                            <strong>Reminder:</strong>
+                            <p>Records reflect Epic sandbox data and may not match production.</p>
+                        </div>
+                        <div class="box-statue">
+                            <span>Status:</span>
+                            <span class="type-label">Current</span>
+                        </div>
+                        <button class="detail-btn"> View Details</button>
+                    </div>
+
+                    <div class="box-tile">
+                        <div class="box-header">
+                            <div class="box-no">
+                                3
+                            </div>
+                            <div class="box-title">
+                                Visit Preparation
+                            </div>
+                            <div class="add-fav">
+                                <i class="fa fa-heart-o"></i>
+                            </div>
+                        </div>
+                        <div class="box-statue">
+
+                            <span>Checklist</span>
+
+                            <span class="status-label">up next</span>
+                        </div>
+                        <div class="box-disc">
+                            <p>Preview upcoming visit details and share concerns with your provider.</p>
+                        </div>
+                        <div class="disclaimer">
+                            <strong>Reminder:</strong>
+                            <p>Encounter data below is sourced directly from the encounter bundle.</p>
+                        </div>
+                        <div class="box-statue">
+                            <span>Next Step:</span>
+                            <span class="type-label">Confirm appointment</span>
+                        </div>
+                        <button class="detail-btn"> View Details</button>
+                    </div>
+
+                    <div class="box-tile">
+                        <div class="box-header">
+                            <div class="box-no">
+                                4
+                            </div>
+                            <div class="box-title">
+                                Support Resources
+                            </div>
+                            <div class="add-fav">
+                                <i class="fa fa-heart-o"></i>
+                            </div>
+                        </div>
+                        <div class="box-statue">
+
+                            <span>Access</span>
+                            <span class="status-label">available</span>
+
+                        </div>
+                        <div class="box-disc">
+                            <p>Connect with patient advocates, billing assistance, or technical support.</p>
+                        </div>
+                        <div class="disclaimer">
+                            <strong>Reminder:</strong>
+                            <p>Use the SMART context logs below to troubleshoot launch issues.</p>
+                        </div>
+                        <div class="box-statue">
+                            <span>Contact:</span>
+                            <span class="type-label">877-555-1234</span>
+                        </div>
+                        <button class="detail-btn"> View Details</button>
+                    </div>
+                </div>
+
+                <div class="header-section3">
+                    <div class="panel">
+                        <h4>Patient Resource:</h4>
+                        <pre id="info">Loading...</pre>
+                    </div>
+                    <div class="panel">
+                        <h4>Encounter History:</h4>
+                        <pre id="encounterInfo">Loading...</pre>
+                    </div>
+                    <div class="panel">
+                        <h4>SMART Context & Logs:</h4>
+                        <pre id="contextInfo">Waiting for SMART launch...</pre>
+                    </div>
+                </div>
+
+                <div class="panel" id="errorPanel" style="display:none; margin-top: 20px;">
+                    <h4>Errors:</h4>
+                    <pre id="errorMessage">None</pre>
+                </div>
+            </div>
+            <div class="sidebar-right">
+                EHR Sidebar
+            </div>
+        </div>
+
+    </div>
+
+
+    <script type="text/javascript">
+
+        if (!library)
+            var library = {};
+
+        library.json = {
+            replacer: function (match, pIndent, pKey, pVal, pEnd) {
+                var key = '<span class=json-key>';
+                var val = '<span class=json-value>';
+                var str = '<span class=json-string>';
+                var r = pIndent || '';
+                if (pKey)
+                    r = r + key + pKey.replace(/[": ]/g, '') + '</span>: ';
+                if (pVal)
+                    r = r + (pVal[0] == '"' ? str : val) + pVal + '</span>';
+                return r + (pEnd || '');
+            },
+            prettyPrint: function (obj) {
+                if (!obj)
+                    return 'No data returned.';
+                var jsonLine = /^( *)("[\w]+": )?("[^"]*"|[\w.+-]*)?([,[{])?$/mg;
+                return JSON.stringify(obj, null, 3)
+                    .replace(/&/g, '&amp;').replace(/\\"/g, '&quot;')
+                    .replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(jsonLine, library.json.replacer);
+            }
+        };
+
+        function getExtensionValue(pt, reqVal) {
+            if (!pt || !pt.extension)
+                return 'N/A';
+            for (var i = 0; i < pt.extension.length; i++) {
+                var ext = pt.extension[i];
+                if (ext && ext.url && ext.url === reqVal && ext.extension && ext.extension.length > 0) {
+                    var nested = ext.extension[0];
+                    if (nested.valueCoding && nested.valueCoding.display)
+                        return nested.valueCoding.display;
+                    if (nested.valueString)
+                        return nested.valueString;
+                }
+            }
+            return 'N/A';
+        }
+
+        function formatAddress(addressCollection) {
+            if (!addressCollection || !addressCollection.length)
+                return 'N/A';
+            var address = addressCollection[0];
+            var segments = [];
+            if (address.line && address.line.length)
+                segments.push(address.line.join(', '));
+            if (address.city)
+                segments.push(address.city);
+            var region = [];
+            if (address.state)
+                region.push(address.state);
+            if (address.postalCode)
+                region.push(address.postalCode);
+            if (region.length)
+                segments.push(region.join(' '));
+            if (address.country)
+                segments.push(address.country);
+            return segments.join(', ') || 'N/A';
+        }
+
+        function formatContact(telecomCollection) {
+            if (!telecomCollection || !telecomCollection.length)
+                return 'N/A';
+            var telecom = telecomCollection[0];
+            var parts = [];
+            if (telecom.use)
+                parts.push(telecom.use);
+            if (telecom.value)
+                parts.push(telecom.value);
+            return parts.join(': ') || telecom.value || 'N/A';
+        }
+
+        function setText(id, value) {
+            var el = document.getElementById(id);
+            if (el)
+                el.textContent = value || 'N/A';
+        }
+
+        function setHTML(id, value) {
+            var el = document.getElementById(id);
+            if (el)
+                el.innerHTML = value;
+        }
+
+        function showError(error) {
+            var message = 'Unknown error';
+            if (error) {
+                if (error.stack)
+                    message = error.stack;
+                else if (error.message)
+                    message = error.message;
+                else
+                    message = JSON.stringify(error, null, 2);
+            }
+            setText('patient_header', 'Error Occurred');
+            setText('info', message);
+            setText('encounterInfo', message);
+            $('#errorMessage').text(message);
+            $('#errorPanel').show();
+        }
+
+        function showEncounterError(error) {
+            var message = error && error.message ? error.message : 'Unable to load encounters.';
+            setText('encounterInfo', message);
+            logStatus('Encounter request failed: ' + message);
+        }
+
+        function extractPatientId(client) {
+            if (client.patient && client.patient.id)
+                return client.patient.id;
+            var token = client.state && client.state.tokenResponse;
+            if (token) {
+                if (token.patient)
+                    return token.patient.replace('Patient/', '');
+                if (token.patient_id)
+                    return token.patient_id.replace('Patient/', '');
+            }
+            return null;
+        }
+
+        function extractEncounterId(client) {
+            if (client.encounter && client.encounter.id)
+                return client.encounter.id;
+            var token = client.state && client.state.tokenResponse;
+            if (token && token.encounter)
+                return token.encounter.replace('Encounter/', '');
+            return null;
+        }
+
+        function updateContextDisplay(patientId, encounterId) {
+            setText('patientIdLabel', patientId || 'Not provided');
+            setText('encounterIdLabel', encounterId ? 'Encounter ID: ' + encounterId : 'Encounter ID: Not provided');
+            var lines = [
+                'SMART patient context: ' + (patientId || 'not returned'),
+                'SMART encounter context: ' + (encounterId || 'not returned')
+            ];
+            $('#contextInfo').text(lines.join('\n'));
+        }
+
+        function logStatus(message) {
+            console.log('[Epic Patient App]', message);
+            var block = document.getElementById('contextInfo');
+            if (!block)
+                return;
+            var existing = block.textContent;
+            var stamp = new Date().toISOString() + ' - ' + message;
+            if (!existing || existing === 'Waiting for SMART launch...' || existing.indexOf('SMART patient context') === 0) {
+                block.textContent = existing && existing.indexOf('SMART patient context') === 0
+                    ? existing + '\n' + stamp
+                    : stamp;
+            } else {
+                block.textContent = existing + '\n' + stamp;
+            }
+        }
+
+        function renderPatient(pt) {
+            if (!pt)
+                throw new Error('Patient resource is undefined.');
+            var name = 'Unknown';
+            if (pt.name && pt.name.length) {
+                var primary = pt.name[0];
+                if (primary.text)
+                    name = primary.text;
+                else {
+                    var pieces = [];
+                    if (primary.prefix && primary.prefix.length)
+                        pieces.push(primary.prefix.join(' '));
+                    if (primary.given && primary.given.length)
+                        pieces.push(primary.given.join(' '));
+                    if (primary.family)
+                        pieces.push(primary.family);
+                    name = pieces.join(' ').trim() || 'Unknown';
+                }
+            }
+            setText('patient_header', name);
+            setText('patientS', name);
+            setText('ethnicityS', getExtensionValue(pt, 'http://hl7.org/fhir/us/core/StructureDefinition/us-core-ethnicity'));
+            var identifier = 'N/A';
+            if (pt.identifier && pt.identifier.length) {
+                var id0 = pt.identifier[0];
+                identifier = id0.value || id0.id || 'N/A';
+            }
+            setText('cidS', identifier);
+            setText('raceS', getExtensionValue(pt, 'http://hl7.org/fhir/us/core/StructureDefinition/us-core-race'));
+            setText('dobS', pt.birthDate || 'N/A');
+            setText('addressS', formatAddress(pt.address));
+            setText('genderS', pt.gender || 'N/A');
+            setText('phoneS', formatContact(pt.telecom));
+            setHTML('info', library.json.prettyPrint(pt));
+        }
+
+        function renderEncounters(bundle) {
+            if (!bundle) {
+                setText('encounterInfo', 'No encounters returned.');
+                return;
+            }
+            setHTML('encounterInfo', library.json.prettyPrint(bundle));
+        }
+
+        async function loadFhirUser(client) {
+            if (!client.user || !client.user.fhirUser)
+                return null;
+            try {
+                var userResource = await client.request(client.user.fhirUser);
+                logStatus('Loaded fhirUser resource: ' + client.user.fhirUser);
+                return userResource;
+            } catch (error) {
+                console.warn('Unable to load fhirUser resource', error);
+                logStatus('Failed to load fhirUser resource.');
+                return null;
+            }
+        }
+
+        function appendUserToContext(userResource) {
+            if (!userResource)
+                return;
+            var block = document.getElementById('contextInfo');
+            var text = block.textContent || '';
+            var display = userResource.name && userResource.name.length ? (userResource.name[0].text || userResource.name[0].family) : userResource.resourceType || 'Unknown user';
+            block.textContent = text + '\n' + 'User: ' + display + ' (' + (userResource.resourceType || 'Resource') + ')';
+        }
+
+        FHIR.oauth2.ready().then(async function (client) {
+            logStatus('SMART client ready.');
+            var patientId = extractPatientId(client);
+            var encounterId = extractEncounterId(client);
+            updateContextDisplay(patientId, encounterId);
+            logStatus('Context received from Epic.');
+
+            var patientResource = null;
+            try {
+                if (client.patient && typeof client.patient.read === 'function') {
+                    patientResource = await client.patient.read();
+                    logStatus('Loaded patient via client.patient.read().');
+                }
+            } catch (readError) {
+                console.warn('client.patient.read() failed, will attempt fallback.', readError);
+                logStatus('client.patient.read() failed; attempting patient request by id.');
+                if (patientId)
+                    patientResource = await client.request('Patient/' + patientId);
+                else
+                    throw readError;
+            }
+
+            if (!patientResource && patientId) {
+                logStatus('Falling back to Patient request using extracted context id.');
+                patientResource = await client.request('Patient/' + patientId);
+            }
+
+            if (!patientResource)
+                throw new Error('Epic did not return a Patient resource. Verify SMART launch scopes.');
+
+            renderPatient(patientResource);
+            $('#errorPanel').hide();
+
+            var resolvedPatientId = patientResource.id || patientId;
+            var encounterBundle = null;
+            if (resolvedPatientId) {
+                try {
+                    encounterBundle = await client.request('Encounter?subject=Patient/' + resolvedPatientId);
+                    logStatus('Encounter bundle retrieved.');
+                } catch (encounterError) {
+                    console.warn('Encounter request failed.', encounterError);
+                    showEncounterError(encounterError);
+                }
+            } else {
+                logStatus('Skipping encounter retrieval; patient id unavailable.');
+            }
+
+            renderEncounters(encounterBundle);
+
+            var userResource = await loadFhirUser(client);
+            appendUserToContext(userResource);
+
+            return null;
+        }).catch(function (error) {
+            console.error('Failed to load Epic patient view.', error);
+            showError(error);
+        });
+
+    </script>
+
+</body>
+
+</html>
+

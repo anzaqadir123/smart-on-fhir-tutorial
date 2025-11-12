@@ -56,7 +56,7 @@ app.add_middleware(
 CERNER_CLIENT_ID = os.getenv("CERNER_CLIENT_ID", "cbebea6b-836f-4121-82dc-bbd0c712dd81")
 CERNER_TOKEN_URL = os.getenv(
     "CERNER_TOKEN_URL",
-    "https://authorization.cerner.com/tenants/ec2458f2-1e24-41c8-b71b-0e701af7583d/protocols/oauth2/profiles/smart-v1/token"
+    "https://authorization.sandboxcerner.com/tenants/ec2458f2-1e24-41c8-b71b-0e701af7583d/protocols/oauth2/profiles/smart-v1/token"
 )
 CERNER_FHIR_BASE = os.getenv(
     "CERNER_FHIR_BASE",

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <title>EPIC Patient App</title>
+    <script src="./example-smart-app/lib/js/fhir-client-v0.1.12.js"></script>
+</head>
+<body>
+<script>
+    (function () {
+        // Toggle between Epic and Cerner launch targets using the query string (?target=cerner) or by flipping the flag below.
+        var params = new URLSearchParams(window.location.search);
+        var launchTarget = params.get('target') === 'cerner' ? 'cerner' : 'epic';
+
+        // SMART scopes for an Epic patient-facing launch. These MUST align with the configured scopes in the Epic App settings.
+        var epicScopes = [
+            'launch/patient',   // required to receive patient context during a patient-facing launch
+            'patient/*.read',   // read access to the patient record
+            'openid',           // required for identity tokens
+            'profile',          // required to read the user profile
+            'fhirUser'          // required to resolve the fhirUser claim
+        ].join(' ');
+
+        // SMART scopes for the Cerner sandbox patient launch. Keep this list in sync with the Cerner app registration.
+        var cernerScopes = [
+            'launch/patient',
+            'online_access',
+            'openid',
+            'profile',
+            'fhirUser',
+            'patient/Patient.read',
+            'patient/Immunization.read',
+            'patient/DocumentReference.read',
+            'patient/Binary.read'
+        ].join(' ');
+
+        // Client registration references. Epic is the default selection.
+        var configs = {
+            epic: {
+                // EPIC Patient App
+                clientId: '0a53ba5e-1252-4350-9683-f6ca39bc3f23',
+                scope: epicScopes,
+                // Redirect back into the Epic patient index. Update the Epic app registration if this path changes.
+                redirectUri: 'epic-patient-index.html'
+            },
+            cerner: {
+                // CERNER Patient
+                clientId: '46a7f250-3972-4256-affe-ff13d9d35336',
+                scope: cernerScopes,
+                redirectUri: 'https://itissismail.github.io/cerner-patient-index.html'
+            }
+        };
+
+        // Allow manual overrides for local sandbox testing.
+        var selectedConfig = configs[launchTarget] || configs.epic;
+
+        console.log('Launching SMART flow for target:', launchTarget, selectedConfig);
+
+        FHIR.oauth2.authorize({
+            clientId: selectedConfig.clientId,
+            scope: selectedConfig.scope,
+            redirectUri: selectedConfig.redirectUri
+        });
+    })();
+</script>
+</body>
+</html>
+
